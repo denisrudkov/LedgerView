@@ -10,4 +10,16 @@ library LedgerTypes {
         REVENUE,
         REFUND
     }
+
+    enum Category {
+        UNCATEGORIZED,
+        PAYROLL,
+        GRANT,
+        OPERATIONS,
+        TREASURY_MOVE,
+        REVENUE_SHARE,
+        REFUND,
+        INVESTMENT,
+        FEE
+    }
 }
