@@ -34,4 +34,12 @@ library LedgerTypes {
         bytes32 txHash;
         bytes metadata;
     }
+
+    struct EntryAnnotation {
+        Category category;
+        bytes32[] tags;
+        string note;
+        address annotatedBy;
+        uint256 annotatedAt;
+    }
 }
