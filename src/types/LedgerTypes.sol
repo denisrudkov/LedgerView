@@ -42,4 +42,12 @@ library LedgerTypes {
         address annotatedBy;
         uint256 annotatedAt;
     }
+
+    struct SourceConfig {
+        bool isActive;
+        bool canCreateEntries;
+        bool canAnnotate;
+        uint256 registeredAt;
+        bytes32 sourceType;
+    }
 }
