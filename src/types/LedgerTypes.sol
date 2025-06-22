@@ -50,4 +50,11 @@ library LedgerTypes {
         uint256 registeredAt;
         bytes32 sourceType;
     }
+
+    struct IntegrationConfig {
+        address executor;
+        bool autoCreateEntries;
+        uint256 lastExecution;
+        bytes32 integrationType;
+    }
 }
