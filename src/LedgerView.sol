@@ -26,4 +26,20 @@ contract LedgerView is
     bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
     bytes32 public constant CLASSIFIER_ROLE = keccak256("CLASSIFIER_ROLE");
     bytes32 public constant INTEGRATOR_ROLE = keccak256("INTEGRATOR_ROLE");
+
+    uint256 internal _entryCounter;
+    mapping(uint256 => LedgerTypes.LedgerEntry) internal _entries;
+    mapping(uint256 => LedgerTypes.EntryAnnotation) internal _annotations;
+    mapping(address => uint256[]) internal _entriesBySource;
+    mapping(LedgerTypes.EntryType => uint256[]) internal _entriesByType;
+    mapping(LedgerTypes.Category => uint256[]) internal _entriesByCategory;
+    mapping(bytes32 => uint256[]) internal _entriesByTag;
+
+    mapping(address => LedgerTypes.SourceConfig) internal _sources;
+    address[] internal _activeSourceList;
+    mapping(address => uint256) internal _sourceIndex;
+
+    mapping(address => LedgerTypes.IntegrationConfig) internal _integrations;
+
+    address public usdc;
 }
