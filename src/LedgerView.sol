@@ -42,4 +42,24 @@ contract LedgerView is
     mapping(address => LedgerTypes.IntegrationConfig) internal _integrations;
 
     address public usdc;
+
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address admin, address _usdc) public initializer {
+        __AccessControl_init();
+        __UUPSUpgradeable_init();
+        __ReentrancyGuard_init();
+
+        _grantRole(DEFAULT_ADMIN_ROLE, admin);
+        _grantRole(ADMIN_ROLE, admin);
+        _grantRole(OPERATOR_ROLE, admin);
+        _grantRole(CLASSIFIER_ROLE, admin);
+        _grantRole(INTEGRATOR_ROLE, admin);
+
+        usdc = _usdc;
+    }
+
+    function _authorizeUpgrade(address newImplementation) internal override onlyRole(ADMIN_ROLE) {}
 }
