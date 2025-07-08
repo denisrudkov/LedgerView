@@ -62,4 +62,49 @@ contract LedgerView is
     }
 
     function _authorizeUpgrade(address newImplementation) internal override onlyRole(ADMIN_ROLE) {}
+
+    function createEntry(
+        LedgerTypes.EntryType entryType,
+        address asset,
+        uint256 amount,
+        address source,
+        address destination,
+        bytes32 txHash,
+        bytes calldata metadata
+    ) external nonReentrant returns (uint256) {
+        require(
+            hasRole(OPERATOR_ROLE, msg.sender) || _sources[msg.sender].canCreateEntries,
+            "Not authorized"
+        );
+
+        uint256 id = ++_entryCounter;
+
+        _entries[id] = LedgerTypes.LedgerEntry({
+            id: id,
+            entryType: entryType,
+            asset: asset,
+            amount: amount,
+            source: source,
+            destination: destination,
+            timestamp: block.timestamp,
+            txHash: txHash,
+            metadata: metadata
+        });
+
+        _entriesBySource[source].push(id);
+        _entriesByType[entryType].push(id);
+
+        emit EntryCreated(id, entryType, source, asset, amount, block.timestamp);
+
+        return id;
+    }
+
+    function getEntry(uint256 id) external view returns (LedgerTypes.LedgerEntry memory) {
+        require(id > 0 && id <= _entryCounter, "Invalid entry ID");
+        return _entries[id];
+    }
+
+    function getEntryCount() external view returns (uint256) {
+        return _entryCounter;
+    }
 }
