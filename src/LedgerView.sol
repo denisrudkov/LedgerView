@@ -107,4 +107,12 @@ contract LedgerView is
     function getEntryCount() external view returns (uint256) {
         return _entryCounter;
     }
+
+    function getEntriesBySource(address source) external view returns (uint256[] memory) {
+        return _entriesBySource[source];
+    }
+
+    function getEntriesByType(LedgerTypes.EntryType entryType) external view returns (uint256[] memory) {
+        return _entriesByType[entryType];
+    }
 }
