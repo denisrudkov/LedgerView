@@ -115,4 +115,70 @@ contract LedgerView is
     function getEntriesByType(LedgerTypes.EntryType entryType) external view returns (uint256[] memory) {
         return _entriesByType[entryType];
     }
+
+    function registerSource(
+        address source,
+        bytes32 sourceType,
+        bool canCreateEntries,
+        bool canAnnotate
+    ) external onlyRole(ADMIN_ROLE) {
+        require(source != address(0), "Invalid source");
+        require(!_sources[source].isActive, "Already registered");
+
+        _sources[source] = LedgerTypes.SourceConfig({
+            isActive: true,
+            canCreateEntries: canCreateEntries,
+            canAnnotate: canAnnotate,
+            registeredAt: block.timestamp,
+            sourceType: sourceType
+        });
+
+        _sourceIndex[source] = _activeSourceList.length;
+        _activeSourceList.push(source);
+
+        emit SourceRegistered(source, sourceType, block.timestamp);
+    }
+
+    function removeSource(address source) external onlyRole(ADMIN_ROLE) {
+        require(_sources[source].isActive, "Not registered");
+
+        _sources[source].isActive = false;
+
+        uint256 index = _sourceIndex[source];
+        uint256 lastIndex = _activeSourceList.length - 1;
+
+        if (index != lastIndex) {
+            address lastSource = _activeSourceList[lastIndex];
+            _activeSourceList[index] = lastSource;
+            _sourceIndex[lastSource] = index;
+        }
+        _activeSourceList.pop();
+
+        emit SourceRemoved(source, block.timestamp);
+    }
+
+    function updateSourceConfig(
+        address source,
+        bool canCreateEntries,
+        bool canAnnotate
+    ) external onlyRole(ADMIN_ROLE) {
+        require(_sources[source].isActive, "Not registered");
+
+        _sources[source].canCreateEntries = canCreateEntries;
+        _sources[source].canAnnotate = canAnnotate;
+
+        emit SourceConfigUpdated(source, canCreateEntries, canAnnotate);
+    }
+
+    function isSourceActive(address source) external view returns (bool) {
+        return _sources[source].isActive;
+    }
+
+    function getSourceConfig(address source) external view returns (LedgerTypes.SourceConfig memory) {
+        return _sources[source];
+    }
+
+    function getActiveSources() external view returns (address[] memory) {
+        return _activeSourceList;
+    }
 }
