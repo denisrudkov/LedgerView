@@ -181,4 +181,85 @@ contract LedgerView is
     function getActiveSources() external view returns (address[] memory) {
         return _activeSourceList;
     }
+
+    function classifyEntry(uint256 entryId, LedgerTypes.Category category) external {
+        require(
+            hasRole(CLASSIFIER_ROLE, msg.sender) || _sources[msg.sender].canAnnotate,
+            "Not authorized"
+        );
+        require(entryId > 0 && entryId <= _entryCounter, "Invalid entry ID");
+
+        LedgerTypes.Category oldCategory = _annotations[entryId].category;
+
+        if (oldCategory != LedgerTypes.Category.UNCATEGORIZED) {
+            _removeFromCategoryList(entryId, oldCategory);
+        }
+
+        _annotations[entryId].category = category;
+        _annotations[entryId].annotatedBy = msg.sender;
+        _annotations[entryId].annotatedAt = block.timestamp;
+
+        _entriesByCategory[category].push(entryId);
+
+        emit EntryClassified(entryId, category, msg.sender);
+        emit EntryAnnotated(entryId, category, msg.sender);
+    }
+
+    function addTag(uint256 entryId, bytes32 tag) external {
+        require(
+            hasRole(CLASSIFIER_ROLE, msg.sender) || _sources[msg.sender].canAnnotate,
+            "Not authorized"
+        );
+        require(entryId > 0 && entryId <= _entryCounter, "Invalid entry ID");
+
+        _annotations[entryId].tags.push(tag);
+        _entriesByTag[tag].push(entryId);
+
+        if (_annotations[entryId].annotatedBy == address(0)) {
+            _annotations[entryId].annotatedBy = msg.sender;
+            _annotations[entryId].annotatedAt = block.timestamp;
+        }
+
+        emit TagAdded(entryId, tag, msg.sender);
+    }
+
+    function addNote(uint256 entryId, string calldata note) external {
+        require(
+            hasRole(CLASSIFIER_ROLE, msg.sender) || _sources[msg.sender].canAnnotate,
+            "Not authorized"
+        );
+        require(entryId > 0 && entryId <= _entryCounter, "Invalid entry ID");
+
+        _annotations[entryId].note = note;
+
+        if (_annotations[entryId].annotatedBy == address(0)) {
+            _annotations[entryId].annotatedBy = msg.sender;
+            _annotations[entryId].annotatedAt = block.timestamp;
+        }
+
+        emit NoteAdded(entryId, msg.sender);
+    }
+
+    function getAnnotation(uint256 entryId) external view returns (LedgerTypes.EntryAnnotation memory) {
+        return _annotations[entryId];
+    }
+
+    function getEntriesByCategory(LedgerTypes.Category category) external view returns (uint256[] memory) {
+        return _entriesByCategory[category];
+    }
+
+    function getEntriesByTag(bytes32 tag) external view returns (uint256[] memory) {
+        return _entriesByTag[tag];
+    }
+
+    function _removeFromCategoryList(uint256 entryId, LedgerTypes.Category category) private {
+        uint256[] storage list = _entriesByCategory[category];
+        for (uint256 i = 0; i < list.length; i++) {
+            if (list[i] == entryId) {
+                list[i] = list[list.length - 1];
+                list.pop();
+                break;
+            }
+        }
+    }
 }
