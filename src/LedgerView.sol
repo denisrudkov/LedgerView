@@ -262,4 +262,105 @@ contract LedgerView is
             }
         }
     }
+
+    function registerIntegration(
+        address integration,
+        bytes32 integrationType,
+        address executor,
+        bool autoCreate
+    ) external onlyRole(ADMIN_ROLE) {
+        require(integration != address(0), "Invalid integration");
+
+        _integrations[integration] = LedgerTypes.IntegrationConfig({
+            executor: executor,
+            autoCreateEntries: autoCreate,
+            lastExecution: 0,
+            integrationType: integrationType
+        });
+
+        emit IntegrationRegistered(integration, integrationType, executor);
+    }
+
+    function executeIntegration(
+        address integration,
+        LedgerTypes.EntryType entryType,
+        address asset,
+        uint256 amount,
+        address source,
+        address destination,
+        bytes calldata metadata
+    ) external nonReentrant returns (uint256) {
+        LedgerTypes.IntegrationConfig storage config = _integrations[integration];
+        require(config.executor != address(0), "Integration not registered");
+        require(
+            msg.sender == config.executor || hasRole(INTEGRATOR_ROLE, msg.sender),
+            "Not authorized"
+        );
+
+        uint256 id = ++_entryCounter;
+
+        _entries[id] = LedgerTypes.LedgerEntry({
+            id: id,
+            entryType: entryType,
+            asset: asset,
+            amount: amount,
+            source: source,
+            destination: destination,
+            timestamp: block.timestamp,
+            txHash: bytes32(0),
+            metadata: metadata
+        });
+
+        _entriesBySource[source].push(id);
+        _entriesByType[entryType].push(id);
+
+        config.lastExecution = block.timestamp;
+
+        emit EntryCreated(id, entryType, source, asset, amount, block.timestamp);
+        emit IntegrationExecuted(integration, id, block.timestamp);
+
+        return id;
+    }
+
+    function registerBasePayment(
+        address from,
+        address to,
+        uint256 amount,
+        bytes32 reference,
+        bytes calldata metadata
+    ) external nonReentrant returns (uint256) {
+        require(hasRole(INTEGRATOR_ROLE, msg.sender), "Not authorized");
+
+        uint256 id = ++_entryCounter;
+
+        bytes memory fullMetadata = abi.encode(reference, metadata);
+
+        _entries[id] = LedgerTypes.LedgerEntry({
+            id: id,
+            entryType: LedgerTypes.EntryType.PAYOUT,
+            asset: usdc,
+            amount: amount,
+            source: from,
+            destination: to,
+            timestamp: block.timestamp,
+            txHash: bytes32(0),
+            metadata: fullMetadata
+        });
+
+        _entriesBySource[from].push(id);
+        _entriesByType[LedgerTypes.EntryType.PAYOUT].push(id);
+
+        emit EntryCreated(id, LedgerTypes.EntryType.PAYOUT, from, usdc, amount, block.timestamp);
+        emit BasePayReceived(from, to, amount, reference);
+
+        return id;
+    }
+
+    function getIntegrationConfig(address integration) external view returns (LedgerTypes.IntegrationConfig memory) {
+        return _integrations[integration];
+    }
+
+    function version() external pure virtual returns (string memory) {
+        return "1.0.0";
+    }
 }
