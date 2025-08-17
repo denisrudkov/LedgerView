@@ -65,4 +65,65 @@ contract LedgerViewTest is Test {
         assertEq(ledger.usdc(), usdc);
         assertEq(ledger.version(), "1.0.0");
     }
+
+    function test_CreateEntry() public {
+        vm.prank(operator);
+
+        vm.expectEmit(true, true, true, true);
+        emit EntryCreated(1, LedgerTypes.EntryType.DEPOSIT, treasury, usdc, 1000e6, block.timestamp);
+
+        uint256 id = ledger.createEntry(
+            LedgerTypes.EntryType.DEPOSIT,
+            usdc,
+            1000e6,
+            treasury,
+            address(ledger),
+            keccak256("tx1"),
+            ""
+        );
+
+        assertEq(id, 1);
+        assertEq(ledger.getEntryCount(), 1);
+
+        LedgerTypes.LedgerEntry memory entry = ledger.getEntry(1);
+        assertEq(entry.amount, 1000e6);
+        assertEq(entry.source, treasury);
+    }
+
+    function test_CreateEntry_Unauthorized() public {
+        address random = makeAddr("random");
+        vm.prank(random);
+        vm.expectRevert("Not authorized");
+        ledger.createEntry(
+            LedgerTypes.EntryType.DEPOSIT,
+            usdc,
+            1000e6,
+            treasury,
+            address(ledger),
+            keccak256("tx1"),
+            ""
+        );
+    }
+
+    function test_GetEntriesBySource() public {
+        vm.startPrank(operator);
+        ledger.createEntry(LedgerTypes.EntryType.DEPOSIT, usdc, 100e6, treasury, address(0), bytes32(0), "");
+        ledger.createEntry(LedgerTypes.EntryType.WITHDRAWAL, usdc, 50e6, treasury, address(0), bytes32(0), "");
+        ledger.createEntry(LedgerTypes.EntryType.DEPOSIT, usdc, 200e6, makeAddr("other"), address(0), bytes32(0), "");
+        vm.stopPrank();
+
+        uint256[] memory entries = ledger.getEntriesBySource(treasury);
+        assertEq(entries.length, 2);
+    }
+
+    function test_GetEntriesByType() public {
+        vm.startPrank(operator);
+        ledger.createEntry(LedgerTypes.EntryType.DEPOSIT, usdc, 100e6, treasury, address(0), bytes32(0), "");
+        ledger.createEntry(LedgerTypes.EntryType.DEPOSIT, usdc, 200e6, treasury, address(0), bytes32(0), "");
+        ledger.createEntry(LedgerTypes.EntryType.WITHDRAWAL, usdc, 50e6, treasury, address(0), bytes32(0), "");
+        vm.stopPrank();
+
+        uint256[] memory deposits = ledger.getEntriesByType(LedgerTypes.EntryType.DEPOSIT);
+        assertEq(deposits.length, 2);
+    }
 }
