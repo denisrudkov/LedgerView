@@ -126,4 +126,47 @@ contract LedgerViewTest is Test {
         uint256[] memory deposits = ledger.getEntriesByType(LedgerTypes.EntryType.DEPOSIT);
         assertEq(deposits.length, 2);
     }
+
+    function test_RegisterSource() public {
+        bytes32 sourceType = keccak256("TREASURY");
+
+        vm.prank(admin);
+        vm.expectEmit(true, true, false, true);
+        emit SourceRegistered(treasury, sourceType, block.timestamp);
+
+        ledger.registerSource(treasury, sourceType, true, false);
+
+        assertTrue(ledger.isSourceActive(treasury));
+
+        LedgerTypes.SourceConfig memory config = ledger.getSourceConfig(treasury);
+        assertTrue(config.isActive);
+        assertTrue(config.canCreateEntries);
+    }
+
+    function test_RegisterSource_ThenCreateEntry() public {
+        vm.prank(admin);
+        ledger.registerSource(treasury, keccak256("TREASURY"), true, false);
+
+        vm.prank(treasury);
+        uint256 id = ledger.createEntry(
+            LedgerTypes.EntryType.WITHDRAWAL,
+            usdc,
+            500e6,
+            treasury,
+            makeAddr("recipient"),
+            keccak256("tx2"),
+            ""
+        );
+
+        assertEq(id, 1);
+    }
+
+    function test_RemoveSource() public {
+        vm.startPrank(admin);
+        ledger.registerSource(treasury, keccak256("TREASURY"), true, false);
+        ledger.removeSource(treasury);
+        vm.stopPrank();
+
+        assertFalse(ledger.isSourceActive(treasury));
+    }
 }
