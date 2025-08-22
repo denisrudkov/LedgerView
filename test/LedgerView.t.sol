@@ -169,4 +169,73 @@ contract LedgerViewTest is Test {
 
         assertFalse(ledger.isSourceActive(treasury));
     }
+
+    function test_ClassifyEntry() public {
+        vm.prank(operator);
+        ledger.createEntry(LedgerTypes.EntryType.PAYOUT, usdc, 2000e6, treasury, makeAddr("employee"), keccak256("tx3"), "");
+
+        vm.prank(classifier);
+        vm.expectEmit(true, true, true, false);
+        emit EntryClassified(1, LedgerTypes.Category.PAYROLL, classifier);
+
+        ledger.classifyEntry(1, LedgerTypes.Category.PAYROLL);
+
+        LedgerTypes.EntryAnnotation memory annotation = ledger.getAnnotation(1);
+        assertEq(uint256(annotation.category), uint256(LedgerTypes.Category.PAYROLL));
+    }
+
+    function test_AddTag() public {
+        vm.prank(operator);
+        ledger.createEntry(LedgerTypes.EntryType.PAYOUT, usdc, 1500e6, treasury, makeAddr("contractor"), keccak256("tx4"), "");
+
+        bytes32 tag = keccak256("Q3-2025");
+
+        vm.prank(classifier);
+        ledger.addTag(1, tag);
+
+        uint256[] memory taggedEntries = ledger.getEntriesByTag(tag);
+        assertEq(taggedEntries.length, 1);
+    }
+
+    function test_AddNote() public {
+        vm.prank(operator);
+        ledger.createEntry(LedgerTypes.EntryType.REVENUE, usdc, 50000e6, treasury, makeAddr("grantee"), keccak256("tx5"), "");
+
+        vm.prank(classifier);
+        ledger.addNote(1, "Ecosystem grant for protocol development");
+
+        LedgerTypes.EntryAnnotation memory annotation = ledger.getAnnotation(1);
+        assertEq(annotation.note, "Ecosystem grant for protocol development");
+    }
+
+    function test_GetEntriesByCategory() public {
+        vm.startPrank(operator);
+        ledger.createEntry(LedgerTypes.EntryType.PAYOUT, usdc, 1000e6, treasury, address(0), bytes32(0), "");
+        ledger.createEntry(LedgerTypes.EntryType.PAYOUT, usdc, 2000e6, treasury, address(0), bytes32(0), "");
+        vm.stopPrank();
+
+        vm.startPrank(classifier);
+        ledger.classifyEntry(1, LedgerTypes.Category.PAYROLL);
+        ledger.classifyEntry(2, LedgerTypes.Category.PAYROLL);
+        vm.stopPrank();
+
+        uint256[] memory payrollEntries = ledger.getEntriesByCategory(LedgerTypes.Category.PAYROLL);
+        assertEq(payrollEntries.length, 2);
+    }
+
+    function test_ReclassifyEntry() public {
+        vm.prank(operator);
+        ledger.createEntry(LedgerTypes.EntryType.PAYOUT, usdc, 1000e6, treasury, address(0), bytes32(0), "");
+
+        vm.startPrank(classifier);
+        ledger.classifyEntry(1, LedgerTypes.Category.OPERATIONS);
+        ledger.classifyEntry(1, LedgerTypes.Category.PAYROLL);
+        vm.stopPrank();
+
+        uint256[] memory opsEntries = ledger.getEntriesByCategory(LedgerTypes.Category.OPERATIONS);
+        assertEq(opsEntries.length, 0);
+
+        uint256[] memory payrollEntries = ledger.getEntriesByCategory(LedgerTypes.Category.PAYROLL);
+        assertEq(payrollEntries.length, 1);
+    }
 }
