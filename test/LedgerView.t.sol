@@ -238,4 +238,61 @@ contract LedgerViewTest is Test {
         uint256[] memory payrollEntries = ledger.getEntriesByCategory(LedgerTypes.Category.PAYROLL);
         assertEq(payrollEntries.length, 1);
     }
+
+    function test_RegisterIntegration() public {
+        address integration = makeAddr("basepay");
+        address executor = makeAddr("executor");
+
+        vm.prank(admin);
+        ledger.registerIntegration(integration, keccak256("BASEPAY"), executor, true);
+
+        LedgerTypes.IntegrationConfig memory config = ledger.getIntegrationConfig(integration);
+        assertEq(config.executor, executor);
+        assertTrue(config.autoCreateEntries);
+    }
+
+    function test_ExecuteIntegration() public {
+        address integration = makeAddr("basepay");
+
+        vm.prank(admin);
+        ledger.grantRole(ledger.INTEGRATOR_ROLE(), integration);
+
+        vm.prank(admin);
+        ledger.registerIntegration(integration, keccak256("BASEPAY"), integration, true);
+
+        vm.prank(integration);
+        uint256 id = ledger.executeIntegration(
+            integration,
+            LedgerTypes.EntryType.PAYOUT,
+            usdc,
+            5000e6,
+            treasury,
+            makeAddr("recipient"),
+            ""
+        );
+
+        assertEq(id, 1);
+    }
+
+    function test_RegisterBasePayment() public {
+        address integrator = makeAddr("integrator");
+
+        vm.prank(admin);
+        ledger.grantRole(ledger.INTEGRATOR_ROLE(), integrator);
+
+        vm.prank(integrator);
+        uint256 id = ledger.registerBasePayment(
+            treasury,
+            makeAddr("recipient"),
+            10000e6,
+            keccak256("payment-ref"),
+            ""
+        );
+
+        assertEq(id, 1);
+
+        LedgerTypes.LedgerEntry memory entry = ledger.getEntry(1);
+        assertEq(entry.asset, usdc);
+        assertEq(entry.amount, 10000e6);
+    }
 }
