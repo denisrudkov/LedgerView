@@ -295,4 +295,69 @@ contract LedgerViewTest is Test {
         assertEq(entry.asset, usdc);
         assertEq(entry.amount, 10000e6);
     }
+
+    function test_Upgrade() public {
+        vm.prank(operator);
+        ledger.createEntry(LedgerTypes.EntryType.DEPOSIT, usdc, 1000e6, treasury, address(0), bytes32(0), "");
+
+        LedgerViewV2 newImplementation = new LedgerViewV2();
+
+        vm.prank(admin);
+        ledger.upgradeTo(address(newImplementation));
+
+        LedgerViewV2 ledgerV2 = LedgerViewV2(address(ledger));
+        assertEq(ledgerV2.version(), "2.0.0");
+        assertEq(ledgerV2.getEntryCount(), 1);
+    }
+
+    function test_UpgradeV2_NewFunctionality() public {
+        LedgerViewV2 newImplementation = new LedgerViewV2();
+
+        vm.prank(admin);
+        ledger.upgradeTo(address(newImplementation));
+
+        LedgerViewV2 ledgerV2 = LedgerViewV2(address(ledger));
+
+        vm.prank(operator);
+        ledgerV2.createEntryV2(
+            LedgerTypes.EntryType.DEPOSIT,
+            usdc,
+            5000e6,
+            treasury,
+            address(0),
+            bytes32(0),
+            ""
+        );
+
+        assertEq(ledgerV2.getTotalVolume(), 5000e6);
+        assertEq(ledgerV2.getAssetVolume(usdc), 5000e6);
+    }
+
+    function test_Upgrade_OnlyAdmin() public {
+        LedgerViewV2 newImplementation = new LedgerViewV2();
+
+        vm.prank(operator);
+        vm.expectRevert();
+        ledger.upgradeTo(address(newImplementation));
+    }
+
+    function testFuzz_CreateMultipleEntries(uint8 count) public {
+        vm.assume(count > 0 && count <= 50);
+
+        vm.startPrank(operator);
+        for (uint256 i = 0; i < count; i++) {
+            ledger.createEntry(
+                LedgerTypes.EntryType.DEPOSIT,
+                usdc,
+                (i + 1) * 100e6,
+                treasury,
+                address(0),
+                keccak256(abi.encodePacked(i)),
+                ""
+            );
+        }
+        vm.stopPrank();
+
+        assertEq(ledger.getEntryCount(), count);
+    }
 }
