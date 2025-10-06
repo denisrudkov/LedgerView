@@ -1,0 +1,71 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      network:
+        description: 'Network to deploy to'
+        required: true
+        default: 'base-sepolia'
+        type: choice
+        options:
+          - base-sepolia
+          - base
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.network }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Install dependencies
+        run: git submodule update --init --recursive
+
+      - name: Set environment
+        run: |
+          if [ "${{ inputs.network }}" == "base-sepolia" ]; then
+            echo "RPC_URL=${{ secrets.BASE_SEPOLIA_RPC_URL }}" >> $GITHUB_ENV
+            echo "USDC_ADDRESS=0x036CbD53842c5426634e7929541eC2318f3dCF7e" >> $GITHUB_ENV
+            echo "CHAIN_ID=84532" >> $GITHUB_ENV
+          else
+            echo "RPC_URL=${{ secrets.BASE_RPC_URL }}" >> $GITHUB_ENV
+            echo "USDC_ADDRESS=0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" >> $GITHUB_ENV
+            echo "CHAIN_ID=8453" >> $GITHUB_ENV
+          fi
+
+      - name: Deploy contracts
+        env:
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          ADMIN_ADDRESS: ${{ secrets.ADMIN_ADDRESS }}
+        run: |
+          forge script script/Deploy.s.sol \
+            --rpc-url $RPC_URL \
+            --broadcast \
+            -vvvv
+
+      - name: Upload deployment artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-${{ inputs.network }}
+          path: |
+            deployments/
+            broadcast/
+
+      - name: Verify contracts
+        if: success()
+        env:
+          BASESCAN_API_KEY: ${{ secrets.BASESCAN_API_KEY }}
+        run: |
+          DEPLOYMENT=$(cat deployments/latest.json)
+          IMPL=$(echo $DEPLOYMENT | jq -r '.implementation')
+
+          forge verify-contract $IMPL src/LedgerView.sol:LedgerView \
+            --chain $CHAIN_ID \
+            --etherscan-api-key $BASESCAN_API_KEY \
+            --watch || true
