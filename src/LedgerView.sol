@@ -326,14 +326,14 @@ contract LedgerView is
         address from,
         address to,
         uint256 amount,
-        bytes32 reference,
+        bytes32 paymentRef,
         bytes calldata metadata
     ) external nonReentrant returns (uint256) {
         require(hasRole(INTEGRATOR_ROLE, msg.sender), "Not authorized");
 
         uint256 id = ++_entryCounter;
 
-        bytes memory fullMetadata = abi.encode(reference, metadata);
+        bytes memory fullMetadata = abi.encode(paymentRef, metadata);
 
         _entries[id] = LedgerTypes.LedgerEntry({
             id: id,
@@ -351,7 +351,7 @@ contract LedgerView is
         _entriesByType[LedgerTypes.EntryType.PAYOUT].push(id);
 
         emit EntryCreated(id, LedgerTypes.EntryType.PAYOUT, from, usdc, amount, block.timestamp);
-        emit BasePayReceived(from, to, amount, reference);
+        emit BasePayReceived(from, to, amount, paymentRef);
 
         return id;
     }
