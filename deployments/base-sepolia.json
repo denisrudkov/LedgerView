@@ -1,0 +1,8 @@
+{
+  "implementation": "0x3a4c65f808D47d81eECDd04CaAf957670121Cd7c",
+  "proxy": "0xb028bC63bA31a93C1DE26D5333eEa9D85eF9aCf7",
+  "usdc": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+  "chainId": 84532,
+  "network": "base-sepolia",
+  "deployedAt": "2025-11-24"
+}
